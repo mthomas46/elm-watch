@@ -38,6 +38,7 @@ const REPLACEMENTS: Record<string, string> = {
   _Platform_initialize: `
 // added by elm-watch
 var _elmWatchTargetName = "";
+var _elmWatchCompilationMode = "__ELM_WATCH_COMPILATION_MODE_PLACEHOLDER__"; // added by elm-watch to track mode
 
 // This whole function was changed by elm-watch.
 function _Platform_initialize(programType, isDebug, debugMetadata, flagDecoder, args, init, impl, stepperBuilder)
@@ -56,6 +57,29 @@ function _Platform_initialize(programType, isDebug, debugMetadata, flagDecoder, 
 	delete globalThis.__ELM_WATCH_INIT_URL;
 	var model = initPair.a;
 	var stepper = stepperBuilder(sendToApp, model);
+
+	// ALWAYS create debugger refs when compiled in debug mode
+	// This allows external tools (like our bridge) to access the Elm app state
+	var shouldCreateRefs = isDebug || _elmWatchCompilationMode === "debug";
+	if (shouldCreateRefs) {
+		globalThis.__ELM_WATCH_DEBUGGER_REFS = globalThis.__ELM_WATCH_DEBUGGER_REFS || new Map();
+		globalThis.__ELM_WATCH_DEBUGGER_REFS.set(_elmWatchTargetName, {
+			getModel: function() { return model; },
+			getHistory: function() {
+				var hist = model?.history || model?.a;
+				return hist ? {
+					numMessages: hist.numMessages || hist.c || 0,
+					recent: hist.recent || hist.b,
+					snapshots: hist.snapshots || hist.a
+				} : null;
+			},
+			getState: function() { return model?.state || model?.b; },
+			programType: programType,
+			targetName: _elmWatchTargetName,
+			compilationMode: _elmWatchCompilationMode
+		});
+	}
+
 	var ports = _Platform_setupEffects(managers, sendToApp);
 	var update;
 	var subscriptions;
@@ -736,6 +760,11 @@ export function inject(
         /^var _elmWatchTargetName = "";$/m,
         /* v8 ignore next */
         `var _elmWatchTargetName = ${Codec.JSON.stringify(Codec.string, targetName ?? "")};`,
+      )
+      // Replace compilation mode placeholder with actual mode
+      .replace(
+        /"__ELM_WATCH_COMPILATION_MODE_PLACEHOLDER__"/g,
+        Codec.JSON.stringify(Codec.string, compilationMode),
       )
   );
 }

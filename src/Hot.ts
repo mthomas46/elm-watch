@@ -12,6 +12,8 @@ import {
   WebSocketToClientMessage,
   WebSocketToServerMessage,
 } from "../client/WebSocketMessages";
+import type { DebuggerSnapshot, TimelineQuery } from "./StateTimeline";
+import { StateTimeline } from "./StateTimeline";
 import * as Compile from "./Compile";
 import { ElmWatchStuffJson, Target } from "./ElmWatchStuffJson";
 import {
@@ -210,6 +212,7 @@ type Model = {
   nextAction: NextAction;
   hotState: HotState;
   latestEvents: Array<LatestEvent>;
+  stateTimeline: StateTimeline;
 };
 
 type NextAction =
@@ -705,6 +708,7 @@ const init = (
       start: now,
     },
     latestEvents: restartReasons,
+    stateTimeline: new StateTimeline(),
   },
   [
     { tag: "ClearScreen" },
@@ -2720,6 +2724,37 @@ function onWebSocketToServerMessage(
           },
         ],
       ];
+
+    case "RequestStateTimeline": {
+      const results = model.stateTimeline.query(
+        message.query as TimelineQuery,
+      );
+      return [
+        model,
+        [
+          {
+            tag: "WebSocketSend",
+            webSocket,
+            message: {
+              tag: "StateTimelineSnapshot",
+              events: results,
+              totalCount: results.length,
+              query: message.query,
+            },
+          },
+        ],
+      ];
+    }
+
+    case "DebuggerSnapshotUpdate": {
+      model.stateTimeline.append({
+        timestamp: Date.now(),
+        type: "debugger_snapshot",
+        targetName: (message.snapshot as DebuggerSnapshot).targetName,
+        data: message.snapshot as DebuggerSnapshot,
+      });
+      return [model, [{ tag: "NoCmd" }]];
+    }
   }
 }
 

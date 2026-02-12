@@ -1179,6 +1179,31 @@ function initWebSocket(
   elmCompiledTimestamp: number,
   dispatch: (msg: Msg) => void,
 ): WebSocket {
+  // Check if hot-reload should be disabled (e.g., running through Docker/nginx proxy)
+  // This prevents noisy WebSocket connection errors when elm-watch dev server isn't running
+  const shouldDisableHotReload =
+    // Explicit global flag to disable
+    (typeof globalThis !== "undefined" && (globalThis as any).__ELM_WATCH_DISABLE_HOT_RELOAD) ||
+    // Running through a reverse proxy (nginx) - port 8080 is typically nginx, not elm-watch
+    (typeof window !== "undefined" && 
+     window.location !== undefined && 
+     (window.location.port === "8080" || window.location.port === "80" || window.location.port === "443"));
+
+  if (shouldDisableHotReload) {
+    // Return a mock WebSocket that never connects but doesn't error
+    const mockWebSocket = {
+      readyState: WebSocket.CLOSED,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      send: () => {},
+      close: () => {},
+      dispatchEvent: () => false,
+    } as unknown as WebSocket;
+    
+    // Silently fail - no connection, no errors
+    return mockWebSocket;
+  }
+
   const [hostname, protocol] =
     // Browser: `window.location` always exists.
     // Web Worker: `window` has been set to `globalThis` at the top, which has `.location`.

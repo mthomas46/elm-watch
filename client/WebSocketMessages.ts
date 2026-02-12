@@ -125,6 +125,12 @@ export const WebSocketToClientMessage = Codec.taggedUnion("tag", [
   {
     tag: Codec.tag("SuccessfullyCompiledButRecordFieldsChanged"),
   },
+  {
+    tag: Codec.tag("StateTimelineSnapshot"),
+    events: Codec.array(Codec.unknown),
+    totalCount: Codec.number,
+    query: Codec.unknown,
+  },
 ]);
 
 export type WebSocketToServerMessage = Codec.Infer<
@@ -153,6 +159,14 @@ export const WebSocketToServerMessage = Codec.taggedUnion("tag", [
     // in the user’s command, potentially causing something unwanted.
     line: nonNegativeIntCodec,
     column: nonNegativeIntCodec,
+  },
+  {
+    tag: Codec.tag("RequestStateTimeline"),
+    query: Codec.unknown,
+  },
+  {
+    tag: Codec.tag("DebuggerSnapshotUpdate"),
+    snapshot: Codec.unknown,
   },
 ]);
 
