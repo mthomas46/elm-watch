@@ -60,6 +60,15 @@ async function run(): Promise<void> {
   fs.rmSync(BUILD, { recursive: true, force: true });
   fs.mkdirSync(BUILD);
 
+  // Symlink build-elm-watch-lib into build/ so npm-linked consumers can import it.
+  // When UI does `npm link elm-watch`, the symlink points to build/, so
+  // `node_modules/elm-watch/build-elm-watch-lib/` must resolve to the sibling dir.
+  const libSymlink = path.join(BUILD, "build-elm-watch-lib");
+  const libTarget = path.join(DIR, "build-elm-watch-lib");
+  if (fs.existsSync(libTarget)) {
+    fs.symlinkSync("../build-elm-watch-lib", libSymlink);
+  }
+
   for (const { src, dest = src, transform } of FILES_TO_COPY) {
     if (transform !== undefined) {
       fs.writeFileSync(
