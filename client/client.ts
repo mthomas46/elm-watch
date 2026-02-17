@@ -1597,6 +1597,10 @@ function onWebSocketToClientMessage(
         },
         [],
       ];
+
+    case "StateTimelineSnapshot":
+      // Timeline data is consumed by external tooling, not the client UI.
+      return [model, []];
   }
 }
 

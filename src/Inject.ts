@@ -38,7 +38,7 @@ const REPLACEMENTS: Record<string, string> = {
   _Platform_initialize: `
 // added by elm-watch
 var _elmWatchTargetName = "";
-var _elmWatchCompilationMode = "__ELM_WATCH_COMPILATION_MODE_PLACEHOLDER__"; // added by elm-watch to track mode
+var _elmWatchCompilationMode = "__ELM_WATCH_COMPILATION_MODE_PLACEHOLDER__";
 
 // This whole function was changed by elm-watch.
 function _Platform_initialize(programType, isDebug, debugMetadata, flagDecoder, args, init, impl, stepperBuilder)
@@ -58,22 +58,22 @@ function _Platform_initialize(programType, isDebug, debugMetadata, flagDecoder, 
 	var model = initPair.a;
 	var stepper = stepperBuilder(sendToApp, model);
 
-	// ALWAYS create debugger refs when compiled in debug mode
-	// This allows external tools (like our bridge) to access the Elm app state
-	var shouldCreateRefs = isDebug || _elmWatchCompilationMode === "debug";
-	if (shouldCreateRefs) {
+	// Expose debugger refs for external tooling when compiled in debug mode.
+	// Guarded: only runs when isDebug is true, so standard/optimize builds are unaffected.
+	if (isDebug) {
 		globalThis.__ELM_WATCH_DEBUGGER_REFS = globalThis.__ELM_WATCH_DEBUGGER_REFS || new Map();
 		globalThis.__ELM_WATCH_DEBUGGER_REFS.set(_elmWatchTargetName, {
 			getModel: function() { return model; },
 			getHistory: function() {
-				var hist = model?.history || model?.a;
-				return hist ? {
+				var hist = model && (model.history || model.a);
+				if (!hist) { return null; }
+				return {
 					numMessages: hist.numMessages || hist.c || 0,
 					recent: hist.recent || hist.b,
 					snapshots: hist.snapshots || hist.a
-				} : null;
+				};
 			},
-			getState: function() { return model?.state || model?.b; },
+			getState: function() { return model && (model.state || model.b); },
 			programType: programType,
 			targetName: _elmWatchTargetName,
 			compilationMode: _elmWatchCompilationMode
